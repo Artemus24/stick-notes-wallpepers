@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit sticker</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Segoe UI", Inter, system-ui, sans-serif;
+    background: #1c1e24;
+    color: #2b2620;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
+  form, .done {
+    width: min(460px, 100%);
+    background: linear-gradient(170deg, #fff59a, #fbe36b);
+    border-radius: 3px 3px 16px 3px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.35);
+    padding: 22px 18px 16px;
+    position: relative;
+  }
+  form::before, .done::before {
+    content: "";
+    position: absolute;
+    top: -12px; left: 50%;
+    width: 92px; height: 24px;
+    transform: translateX(-50%) rotate(-2deg);
+    background: rgba(255,255,255,.55);
+  }
+  label, h1 {
+    display: block;
+    font-family: "Segoe Print", "Comic Sans MS", cursive;
+    font-size: 26px;
+    line-height: 1.15;
+    margin: 0 0 10px;
+    font-weight: 700;
+  }
+  input {
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255,255,255,.72);
+    color: #2b2620;
+    font: 18px/1.3 "Segoe UI", sans-serif;
+    padding: 10px 12px;
+    outline: 2px solid transparent;
+  }
+  input:focus { outline-color: rgba(0,0,0,.35); }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  button {
+    border: 0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: 600 14px "Segoe UI", sans-serif;
+    cursor: pointer;
+    background: rgba(0,0,0,.12);
+    color: #2b2620;
+  }
+  button.primary { background: #2b2620; color: #fff8dc; }
+  button:disabled { opacity: .5; cursor: default; }
+  .hint, .err {
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: rgba(43,38,32,.75);
+  }
+  .err { color: #8a1f12; min-height: 1.2em; }
+  .done p { margin: 0; font-size: 16px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<form id="form">
+  <label id="label" for="text">Text</label>
+  <input id="text" name="text" maxlength="140" autocomplete="off" spellcheck="true" autofocus>
+  <div class="row">
+    <button class="primary" type="submit">Save</button>
+    <button id="cancel" type="button">Cancel</button>
+  </div>
+  <p class="hint">Enter saves, Esc cancels. This is a normal window, so the desktop icons stay put.</p>
+  <p class="err" id="err"></p>
+</form>
+<script>
+(() => {
+  const q = new URLSearchParams(location.search);
+  const token = q.get('token') || '';
+  const field = q.get('field') || 'task';
+  const label = document.getElementById('label');
+  const input = document.getElementById('text');
+  const err = document.getElementById('err');
+  const form = document.getElementById('form');
+  label.textContent = q.get('label') || 'Text';
+  input.value = q.get('text') || '';
+  input.focus();
+  if (field !== 'add') input.select();
+
+  async function send(status) {
+    err.textContent = '';
+    const buttons = form.querySelectorAll('button');
+    buttons.forEach(b => b.disabled = true);
+    try {
+      const r = await fetch('/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          noteId: q.get('noteId') || '',
+          taskId: q.get('taskId') || '',
+          field,
+          status,
+          text: input.value
+        })
+      });
+      if (!r.ok) throw new Error('bad');
+      const done = document.createElement('div');
+      done.className = 'done';
+      const h = document.createElement('h1');
+      h.textContent = status === 'cancel' ? 'Cancelled' : 'Saved to the sticker';
+      const p = document.createElement('p');
+      p.textContent = 'You can close this window. The text is already on the wallpaper.';
+      done.append(h, p);
+      form.replaceWith(done);
+      setTimeout(() => window.close(), 500);
+    } catch (e) {
+      buttons.forEach(b => b.disabled = false);
+      err.textContent = 'The editor did not answer. Leave the start.bat window open.';
+    }
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!input.value.trim()) { err.textContent = 'Type something.'; input.focus(); return; }
+    send('commit');
+  });
+  document.getElementById('cancel').addEventListener('click', () => send('cancel'));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); send('cancel'); }
+  });
+})();
+</script>
+</body>
+</html>

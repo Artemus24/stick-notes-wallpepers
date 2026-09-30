@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sticker Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-hand: 'Caveat', 'Segoe Print', 'Comic Sans MS', cursive;
+    --font-ui: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --ink: #2b2620;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;user-select:none;-webkit-user-select:none}
+  body{font-family:var(--font-ui);color:#eee;transition:background .4s}
+
+  /* Backgrounds */
+  body.bg-dark{
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(80,90,120,.25), transparent 55%),
+      radial-gradient(ellipse at 85% 90%, rgba(120,60,60,.18), transparent 55%),
+      #16181d;
+  }
+  body.bg-cork{
+    background-color:#b98a57;
+    background-image:
+      radial-gradient(rgba(90,55,25,.35) 1px, transparent 1.6px),
+      radial-gradient(rgba(255,230,190,.25) 1px, transparent 1.6px),
+      radial-gradient(ellipse at center, transparent 55%, rgba(40,20,5,.45));
+    background-size: 7px 7px, 11px 11px, 100% 100%;
+    background-position: 0 0, 3px 5px, 0 0;
+  }
+  body.bg-slate{
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.06), transparent 60%),
+      linear-gradient(160deg,#27313a,#1a2127);
+  }
+
+  /* Header: clock */
+  #hud{
+    position:fixed;top:36px;right:48px;text-align:right;pointer-events:none;
+    text-shadow:0 2px 12px rgba(0,0,0,.45);
+  }
+  #clock{font-size:84px;font-weight:600;letter-spacing:-2px;line-height:1;font-variant-numeric:tabular-nums}
+  #date{font-size:20px;opacity:.8;margin-top:6px}
+  #summary{font-size:15px;opacity:.65;margin-top:6px}
+  body.bg-cork #hud{color:#fff8ec}
+
+  /* Toolbar */
+  #toolbar{
+    position:fixed;left:50%;bottom:64px;transform:translateX(-50%);
+    display:flex;gap:6px;padding:6px;border-radius:14px;
+    background:rgba(20,22,26,.55);backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.08);opacity:.35;transition:opacity .2s;z-index:99999;
+  }
+  #toolbar:hover{opacity:1}
+  #toolbar button{
+    font:600 13px var(--font-ui);color:#e8e8e8;background:transparent;border:0;
+    padding:8px 12px;border-radius:9px;cursor:pointer;
+  }
+  #toolbar button:hover{background:rgba(255,255,255,.1)}
+
+  /* Sticker */
+  .note{
+    position:absolute;width:260px;min-height:170px;padding:28px 18px 14px;
+    color:var(--ink);font-family:var(--font-hand);
+    box-shadow: 0 1px 1px rgba(0,0,0,.15), 0 10px 22px -6px rgba(0,0,0,.45), inset 0 -30px 40px -30px rgba(0,0,0,.12);
+    border-radius:2px 2px 18px 2px / 2px 2px 10px 2px;
+    transform:rotate(var(--rot,0deg));
+    transition:box-shadow .15s, transform .15s;
+    display:flex;flex-direction:column;
+  }
+  .note.dragging{transform:rotate(0deg) scale(1.03);box-shadow:0 22px 40px -8px rgba(0,0,0,.55);transition:none;cursor:grabbing}
+  .note::before{ /* tape */
+    content:"";position:absolute;top:-12px;left:50%;width:96px;height:26px;
+    transform:translateX(-50%) rotate(-2deg);
+    background:rgba(255,255,255,.45);
+    box-shadow:0 1px 3px rgba(0,0,0,.15);
+    border-left:1px dashed rgba(0,0,0,.06);border-right:1px dashed rgba(0,0,0,.06);
+  }
+  .c-yellow{background:linear-gradient(170deg,#fff59a,#fbe36b)}
+  .c-pink  {background:linear-gradient(170deg,#ffc4d6,#ff9fbd)}
+  .c-green {background:linear-gradient(170deg,#c8f5a8,#a4e57f)}
+  .c-blue  {background:linear-gradient(170deg,#bfe6ff,#8fd0fb)}
+  .c-orange{background:linear-gradient(170deg,#ffd6a1,#ffb865)}
+  .c-purple{background:linear-gradient(170deg,#e0cdff,#c6a6ff)}
+  .c-white {background:linear-gradient(170deg,#ffffff,#ecebe6)}
+
+  .note-head{display:flex;align-items:center;gap:6px;cursor:grab;margin-bottom:6px}
+  .note-title{
+    flex:1;font-size:30px;font-weight:700;line-height:1.05;outline:none;
+    border-bottom:2px solid rgba(0,0,0,.12);padding-bottom:3px;min-width:0;word-break:break-word;
+  }
+  .note-title[contenteditable="true"]{cursor:text;background:rgba(255,255,255,.35)}
+  .badge{
+    font:600 11px var(--font-ui);padding:3px 7px;border-radius:99px;
+    background:rgba(0,0,0,.12);white-space:nowrap
+  }
+  .note-tools{
+    position:absolute;top:4px;right:6px;display:flex;gap:2px;opacity:0;transition:opacity .15s
+  }
+  .note:hover .note-tools{opacity:1}
+  .note-tools button{
+    width:24px;height:24px;border:0;border-radius:6px;background:rgba(0,0,0,.08);
+    font:600 13px var(--font-ui);color:var(--ink);cursor:pointer;line-height:24px
+  }
+  .note-tools button:hover{background:rgba(0,0,0,.18)}
+
+  .tasks{list-style:none;flex:1}
+  .task{display:flex;align-items:flex-start;gap:8px;padding:2px 0;font-size:23px;line-height:1.15;position:relative}
+  .task .box{
+    flex:0 0 20px;height:20px;margin-top:3px;border:2.2px solid var(--ink);border-radius:4px;
+    cursor:pointer;position:relative;opacity:.8
+  }
+  .task.done .box::after{
+    content:"";position:absolute;left:4px;top:-5px;width:8px;height:16px;
+    border:solid #c0392b;border-width:0 3.5px 3.5px 0;transform:rotate(40deg)
+  }
+  .task .txt{flex:1;outline:none;word-break:break-word;cursor:default}
+  .task .txt[contenteditable="true"]{background:rgba(255,255,255,.45);cursor:text}
+  .task.done .txt{text-decoration:line-through;text-decoration-thickness:2px;opacity:.5}
+  .task .streak{font:600 11px var(--font-ui);margin-top:5px;opacity:.7;white-space:nowrap}
+  .task .del{
+    border:0;background:none;font:600 16px var(--font-ui);color:var(--ink);opacity:0;cursor:pointer;margin-top:2px
+  }
+  .task:hover .del{opacity:.45}
+  .task .del:hover{opacity:1}
+
+  .inline-edit{
+    width:100%;border:0;outline:2px solid rgba(0,0,0,.25);border-radius:4px;background:rgba(255,255,255,.65);
+    font:inherit;color:var(--ink);padding:0 4px;user-select:text;-webkit-user-select:text;min-width:0
+  }
+  .note-title .inline-edit{font-size:28px;font-weight:700}
+  .task .txt{cursor:text}
+  .note-title{cursor:text}
+  .add{
+    margin-top:6px;width:100%;border:0;background:transparent;outline:none;
+    font:500 21px var(--font-hand);color:var(--ink);border-top:1px dashed rgba(0,0,0,.18);padding-top:6px;
+    user-select:text;-webkit-user-select:text
+  }
+  .add::placeholder{color:rgba(0,0,0,.35)}
+  .resize{
+    position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;
+    background:linear-gradient(135deg,transparent 50%,rgba(0,0,0,.15) 50%);border-bottom-right-radius:10px
+  }
+  .progress{height:4px;background:rgba(0,0,0,.1);border-radius:4px;margin-top:8px;overflow:hidden}
+  .progress i{display:block;height:100%;background:rgba(0,0,0,.35);transition:width .3s}
+
+  /* Color palette popup */
+  .palette{
+    position:absolute;top:30px;right:6px;display:flex;gap:4px;padding:6px;border-radius:10px;
+    background:rgba(30,30,30,.85);z-index:5
+  }
+  .palette span{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid rgba(255,255,255,.5)}
+
+  .sel-target{outline:3px solid #e74c3c;outline-offset:2px;border-radius:4px;background:rgba(255,255,255,.35)}
+  .note.sel-note{box-shadow:0 0 0 3px rgba(231,76,60,.55), 0 10px 22px -6px rgba(0,0,0,.45)}
+  #selBar{
+    position:fixed;left:50%;bottom:118px;transform:translateX(-50%);max-width:760px;
+    background:rgba(20,22,26,.88);color:#f2f2f2;border:1px solid rgba(231,76,60,.6);
+    padding:10px 16px;border-radius:12px;font-size:14px;line-height:1.45;z-index:100000;display:none;
+    box-shadow:0 10px 30px rgba(0,0,0,.4)
+  }
+  #selBar b{color:#ff8a7a}
+  #selBar .pending{font-family:var(--font-hand);font-size:22px;color:#fff59a}
+  #selBar button{margin-left:8px;border:0;border-radius:6px;padding:3px 8px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font:600 12px var(--font-ui)}
+  #toast{
+    position:fixed;left:50%;top:24px;transform:translateX(-50%);
+    background:rgba(20,20,20,.85);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;
+    opacity:0;transition:opacity .25s;pointer-events:none;z-index:100000
+  }
+  #toast.show{opacity:1}
+  #fileIn{display:none}
+</style>
+</head>
+<body class="bg-dark">
+
+<div id="hud">
+  <div id="clock">00:00</div>
+  <div id="date"></div>
+  <div id="summary"></div>
+</div>
+
+<div id="board"></div>
+
+<div id="toolbar">
+  <button id="btnAdd" title="New sticker">+ Sticker</button>
+  <button id="btnDaily" title="Habit sticker: resets every day">+ Daily</button>
+  <button id="btnBg" title="Change background">Background</button>
+  <button id="btnClear" title="Remove finished tasks, except daily ones">Clear done</button>
+  <button id="btnExport" title="Save a backup">Export</button>
+  <button id="btnImport" title="Load a backup">Import</button>
+</div>
+<input type="file" id="fileIn" accept=".json">
+<div id="toast"></div>
+<div id="selBar"></div>
+
+<script>
+(() => {
+  const KEY = 'stickerBoard.v1';
+  const COLORS = ['yellow','pink','green','blue','orange','purple','white'];
+  const COLOR_HEX = {yellow:'#fbe36b',pink:'#ff9fbd',green:'#a4e57f',blue:'#8fd0fb',orange:'#ffb865',purple:'#c6a6ff',white:'#ecebe6'};
+  const BGS = ['bg-dark','bg-cork','bg-slate'];
+  const uid = () => Math.random().toString(36).slice(2,10);
+  const today = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const rndRot = () => (Math.random()*5-2.5).toFixed(2);
+
+  const defaults = () => { const X = Math.round(innerWidth*0.28); return {
+    bg:'bg-dark', lastDay: today(), z: 10,
+    notes:[
+      {id:uid(), title:'Today', color:'yellow', x:X, y:90, w:270, rot:-1.5, daily:false, z:1, tasks:[
+        {id:uid(), text:'Clear the tickets', done:false},
+        {id:uid(), text:'Check Flow after deploy', done:false},
+        {id:uid(), text:'Call at 3:00', done:false},
+      ]},
+      {id:uid(), title:'Health', color:'green', x:X+320, y:110, w:260, rot:1.8, daily:true, z:2, tasks:[
+        {id:uid(), text:'Treadmill or a 30 min run', done:false, streak:0},
+        {id:uid(), text:'2 liters of water', done:false, streak:0},
+        {id:uid(), text:'Stretch the back', done:false, streak:0},
+      ]},
+      {id:uid(), title:'Salesforce', color:'blue', x:X+20, y:420, w:280, rot:1.2, daily:false, z:3, tasks:[
+        {id:uid(), text:'SOQL query for the report', done:false},
+        {id:uid(), text:'Test class for the trigger', done:false},
+        {id:uid(), text:'DocuSign: check the webhook', done:false},
+      ]},
+      {id:uid(), title:'Ideas', color:'pink', x:X+360, y:450, w:250, rot:-2.2, daily:false, z:4, tasks:[
+        {id:uid(), text:'n8n automation for mail', done:false},
+        {id:uid(), text:'Look into Agentforce', done:false},
+      ]},
+    ]
+  }; };
+
+  let state;
+  try { state = JSON.parse(localStorage.getItem(KEY)) || defaults(); } catch(e){ state = defaults(); }
+  const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+
+  /* ---------- Selection (edit via Lively "Customise" panel) ---------- */
+  let direct = false;          // type directly on wallpaper (needs Lively keyboard input)
+  let sel = null;              // {noteId, taskId, field:'title'|'task'|'add'}
+  let pending = '';            // text from Lively textbox
+  const selBar = () => document.getElementById('selBar');
+  const esc = (t) => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const EDITOR_PORT = 47831;
+  let editorUp = false;
+  let lastEditorUrl = '';
+  const waitingEdits = new Map();
+  let editPoll = null;
+  function editorBase(){
+    if (location.protocol.startsWith('http') && location.port === String(EDITOR_PORT)) return '';
+    return 'http://127.0.0.1:' + EDITOR_PORT;
+  }
+  function selectionDraft(){
+    if (!sel) return null;
+    const n = state.notes.find(x => x.id === sel.noteId);
+    if (!n) return null;
+    if (sel.field === 'title') return { text: n.title, label: 'Sticker title “' + n.title + '”' };
+    if (sel.field === 'task') {
+      const t = n.tasks.find(x => x.id === sel.taskId);
+      if (!t) return null;
+      return { text: t.text, label: 'Task on “' + n.title + '”' };
+    }
+    if (sel.field === 'add') return { text: '', label: 'New task on “' + n.title + '”' };
+    return null;
+  }
+  function editorUrl(){
+    const draft = selectionDraft();
+    if (!draft) return '';
+    const token = uid();
+    const q = new URLSearchParams({
+      token, noteId: sel.noteId, taskId: sel.taskId || '', field: sel.field,
+      text: draft.text, label: draft.label
+    });
+    waitingEdits.set(token, Date.now());
+    lastEditorUrl = editorBase() + '/compose?' + q.toString();
+    return lastEditorUrl;
+  }
+  function beginEditor(){
+    const url = editorUrl();
+    if (!url) return;
+    window.open(url, 'sticker-edit', 'popup=yes,width=520,height=300,left=120,top=80');
+    ensureEditPoll();
+    updateSelBar();
+  }
+  function ensureEditPoll(){
+    if (editPoll) return;
+    const tick = async () => {
+      const fresh = [...waitingEdits.entries()].filter(([, at]) => Date.now() - at < 180000);
+      waitingEdits.clear();
+      fresh.forEach(([token, at]) => waitingEdits.set(token, at));
+      if (!waitingEdits.size) { editPoll = null; return; }
+      try {
+        const r = await fetch(editorBase() + '/results', { cache: 'no-store' });
+        const list = await r.json();
+        (Array.isArray(list) ? list : []).forEach(item => {
+          if (!item || !waitingEdits.has(item.token) || item.status === 'pending') return;
+          waitingEdits.delete(item.token);
+          if (item.status === 'commit') commitEdit(item.noteId, item.taskId, item.field, item.text);
+        });
+      } catch (e) {}
+      editPoll = setTimeout(tick, 400);
+    };
+    editPoll = setTimeout(tick, 350);
+  }
+  function commitEdit(noteId, taskId, field, text){
+    const v = String(text || '').trim();
+    if (!v) { toast('Empty text'); return; }
+    const n = state.notes.find(x => x.id === noteId);
+    if (!n) return;
+    if (field === 'add') {
+      n.tasks.push({ id: uid(), text: v, done: false, streak: 0 });
+      toast('Task added');
+    } else if (field === 'title') {
+      n.title = v;
+      toast('Title updated');
+    } else if (field === 'task') {
+      const t = n.tasks.find(x => x.id === taskId);
+      if (!t) return;
+      t.text = v;
+      toast('Task updated');
+    } else return;
+    save();
+    render();
+  }
+  async function probeEditor(){
+    const base = editorBase();
+    try {
+      const r = await fetch(base + '/health', { cache: 'no-store' });
+      if (r.ok) return true;
+    } catch (e) {}
+    try {
+      await fetch(base + '/health', { mode: 'no-cors', cache: 'no-store' });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  async function watchEditor(){
+    editorUp = await probeEditor();
+    if (sel) updateSelBar();
+  }
+  const HINT_MS = 2200;
+  let offlineHintUntil = 0;
+  let offlineHintTimer = null;
+  function showOfflineHint(){
+    const bar = selBar();
+    bar.textContent = 'The editor is off. Start start.bat, then double-click again.';
+    bar.style.display = 'block';
+    offlineHintUntil = Date.now() + HINT_MS;
+    clearTimeout(offlineHintTimer);
+    offlineHintTimer = setTimeout(() => {
+      offlineHintUntil = 0;
+      updateSelBar();
+    }, HINT_MS);
+  }
+  async function confirmEditor(){
+    const up = await probeEditor();
+    editorUp = up;
+    if (!sel || direct) return;
+    if (up) beginEditor();
+    else showOfflineHint();
+  }
+  const recentClicks = new Map();
+  function onSecondClick(key, fn){
+    const now = Date.now();
+    const prev = recentClicks.get(key) || 0;
+    if (now - prev < 450) { recentClicks.delete(key); fn(); }
+    else recentClicks.set(key, now);
+  }
+  function select(obj){
+    sel = obj;
+    if (!obj) {
+      lastEditorUrl = '';
+      offlineHintUntil = 0;
+      clearTimeout(offlineHintTimer);
+    }
+    render();
+    if (obj && !direct) {
+      if (editorUp) beginEditor();
+      else confirmEditor();
+    }
+  }
+  function updateSelBar(){
+    const bar = selBar();
+    if (editorUp) offlineHintUntil = 0;
+    else if (Date.now() < offlineHintUntil) return;
+    if (!sel){ bar.style.display='none'; return; }
+    const n = state.notes.find(x=>x.id===sel.noteId); if(!n){ sel=null; bar.style.display='none'; return; }
+    if (!editorUp && !pending){ bar.style.display='none'; return; }
+    let what = '';
+    if (sel.field==='title') what = `sticker title <b>“${esc(n.title)}”</b>`;
+    if (sel.field==='task'){ const t=n.tasks.find(x=>x.id===sel.taskId); what = t?`task <b>“${esc(t.text)}”</b>`:''; }
+    if (sel.field==='add') what = `new task on <b>“${esc(n.title)}”</b>`;
+    const how = editorUp
+      ? `Type in the window that opened and press Enter.${lastEditorUrl ? ` <a target="_blank" rel="noopener" href="${esc(lastEditorUrl)}">Open window</a>` : ''}`
+      : '';
+    bar.innerHTML = `Selected: ${what}<button id="selX">clear</button>${how ? `<br>${how}` : ''}
+      ${pending ? `<br>Text from the Lively panel: <span class="pending">${esc(pending)}</span>` : ''}`;
+    bar.style.display='block';
+    document.getElementById('selX').onclick = () => select(null);
+  }
+  function applyPending(asNew){
+    const v = pending.trim();
+    if (!v){ toast('The Lively text box is empty'); return; }
+    if (!sel){ toast('Double-click a task, a title, or “+ add a task” first'); return; }
+    const field = (asNew || sel.field === 'add') ? 'add' : sel.field;
+    commitEdit(sel.noteId, sel.taskId, field, v);
+    if (field !== 'add' && sel) sel = { noteId: sel.noteId, field: 'add' };
+    render();
+  }
+  window.livelyPropertyListener = function(name, val){
+    if (name==='directTyping'){ direct = !!val; render(); }
+    else if (name==='editText'){ pending = String(val ?? ''); updateSelBar(); }
+    else if (name==='applyBtn'){ applyPending(false); }
+    else if (name==='addTaskBtn'){ applyPending(true); }
+    else if (name==='newNoteBtn'){
+      const v = pending.trim() || 'New sticker';
+      const n = newNote(false, v); sel = {noteId:n.id, field:'add'}; render(); toast('Sticker created');
+    }
+    else if (name==='deselectBtn'){ select(null); }
+  };
+
+  const board = document.getElementById('board');
+  const toastEl = document.getElementById('toast');
+  const toast = (m) => { toastEl.textContent=m; toastEl.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>toastEl.classList.remove('show'),1800); };
+
+  /* ---------- Daily reset ---------- */
+  function dayDiff(a,b){ return Math.round((new Date(b+'T00:00') - new Date(a+'T00:00'))/86400000); }
+  function dailyRollover(){
+    const t = today();
+    if (state.lastDay === t) return false;
+    const gap = dayDiff(state.lastDay, t);
+    state.notes.forEach(n => {
+      if (!n.daily) return;
+      n.tasks.forEach(k => {
+        // streak survives only if done on the last day and no day was skipped
+        if (!(k.done && gap === 1)) k.streak = 0;
+        k.done = false;
+      });
+    });
+    state.lastDay = t; save(); return true;
+  }
+
+  /* ---------- Render ---------- */
+  function render(){
+    document.body.className = state.bg;
+    board.innerHTML = '';
+    state.notes.forEach(n => board.appendChild(renderNote(n)));
+    updateSummary();
+    if (sel){
+      const el = board.querySelector(`.note[data-id="${sel.noteId}"]`);
+      if (el){
+        el.classList.add('sel-note');
+        const tgt = sel.field==='title' ? el.querySelector('.note-title')
+                  : sel.field==='task' ? el.querySelector(`.task[data-id="${sel.taskId}"] .txt`)
+                  : el.querySelector('.add');
+        tgt && tgt.classList.add('sel-target');
+      }
+    }
+    updateSelBar();
+  }
+
+  function renderNote(n){
+    const el = document.createElement('div');
+    el.className = 'note c-' + n.color;
+    el.dataset.id = n.id;
+    el.style.left = n.x+'px'; el.style.top = n.y+'px'; el.style.width = (n.w||260)+'px';
+    el.style.zIndex = n.z || 1;
+    el.style.setProperty('--rot', (n.rot||0)+'deg');
+
+    const done = n.tasks.filter(t=>t.done).length;
+    el.innerHTML = `
+      <div class="note-tools">
+        <button data-a="rename" title="Rename">✎</button>
+        <button data-a="color" title="Color">●</button>
+        <button data-a="type" title="${n.daily?'Make a normal sticker':'Make a daily sticker'}">${n.daily?'↻':'○'}</button>
+        <button data-a="del" title="Delete sticker">✕</button>
+      </div>
+      <div class="note-head">
+        <div class="note-title" title="Double-click to rename, drag to move"></div>
+        ${n.daily ? '<span class="badge">every day</span>' : ''}
+      </div>
+      <ul class="tasks"></ul>
+      <input class="add" placeholder="+ add a task" maxlength="140" ${direct?"":"readonly"}>
+      <div class="progress"><i style="width:${n.tasks.length? (done/n.tasks.length*100):0}%"></i></div>
+      <div class="resize" title="Width"></div>`;
+    el.querySelector('.note-title').textContent = n.title;
+
+    const ul = el.querySelector('.tasks');
+    n.tasks.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'task' + (t.done?' done':'');
+      li.dataset.id = t.id;
+      li.innerHTML = `<span class="box"></span><span class="txt"></span>${n.daily && t.streak ? `<span class="streak">🔥${t.streak}</span>`:''}<button class="del" title="Delete">×</button>`;
+      li.querySelector('.txt').textContent = t.text;
+      ul.appendChild(li);
+    });
+    wireNote(el, n);
+    return el;
+  }
+
+  function updateSummary(){
+    let all=0, done=0;
+    state.notes.forEach(n=>n.tasks.forEach(t=>{all++; if(t.done)done++;}));
+    document.getElementById('summary').textContent = all ? `${done} of ${all} done` : 'No tasks';
+  }
+
+  function bringFront(n, el){
+    state.z = (state.z||10)+1; n.z = state.z; el.style.zIndex = n.z;
+  }
+
+  /* ---------- Interactions ---------- */
+  let editing = false;
+  function editable(node, onDone){
+    if (editing) return; editing = true;
+    const old = node.textContent;
+    const inp = document.createElement('input');
+    inp.className = 'inline-edit'; inp.value = old; inp.maxLength = 140;
+    node.textContent = ''; node.appendChild(inp);
+    ['mousedown','click','dblclick'].forEach(ev => inp.addEventListener(ev, e => e.stopPropagation()));
+    inp.focus(); inp.select();
+    setTimeout(() => { if (document.activeElement !== inp) { inp.focus(); inp.select(); } }, 0);
+    let closed = false;
+    const finish = (commit) => {
+      if (closed) return; closed = true; editing = false;
+      onDone(commit ? inp.value.trim() : null);
+    };
+    inp.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key==='Enter'){ e.preventDefault(); finish(true); }
+      if (e.key==='Escape'){ e.preventDefault(); finish(false); }
+    });
+    inp.addEventListener('blur', () => finish(true));
+  }
+
+  function wireNote(el, n){
+    el.addEventListener('mousedown', () => bringFront(n, el));
+
+    // drag by header
+    const head = el.querySelector('.note-head');
+    head.addEventListener('mousedown', (e) => {
+      if (e.button!==0 || e.target.closest('.inline-edit')) return;
+      const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
+      let moved = false;
+      const mv = (ev) => {
+        if (!moved && Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy) < 5) return;
+        moved = true; el.classList.add('dragging');
+        n.x = Math.max(0, Math.min(innerWidth-60, ox+ev.clientX-sx));
+        n.y = Math.max(0, Math.min(innerHeight-40, oy+ev.clientY-sy));
+        el.style.left=n.x+'px'; el.style.top=n.y+'px';
+      };
+      const up = () => {
+        el.classList.remove('dragging'); removeEventListener('mousemove',mv); removeEventListener('mouseup',up);
+        el.dataset.suppressClick = moved ? '1' : '';
+        if (moved) save();
+      };
+      addEventListener('mousemove',mv); addEventListener('mouseup',up);
+    });
+
+    // resize width
+    el.querySelector('.resize').addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const sx=e.clientX, ow=n.w||260;
+      const mv = (ev) => { n.w = Math.max(190, Math.min(600, ow+ev.clientX-sx)); el.style.width=n.w+'px'; };
+      const up = () => { removeEventListener('mousemove',mv); removeEventListener('mouseup',up); save(); };
+      addEventListener('mousemove',mv); addEventListener('mouseup',up);
+    });
+
+    // rename. Click (not mouseup) keeps the browser user-activation needed to open the editor window.
+    const title = el.querySelector('.note-title');
+    const startRename = () => editable(title, (v) => { if(v) n.title=v; save(); render(); });
+    title.addEventListener('click', () => {
+      if (el.dataset.suppressClick === '1') { el.dataset.suppressClick = ''; return; }
+      onSecondClick('title:' + n.id, () => direct ? startRename() : select({noteId:n.id, field:'title'}));
+    });
+
+    // tools
+    el.querySelector('.note-tools').addEventListener('click', (e) => {
+      const a = e.target.dataset.a; if(!a) return;
+      if (a==='rename'){ direct ? startRename() : select({noteId:n.id, field:'title'}); return; }
+      if (a==='del'){
+        if (el.dataset.confirm){ state.notes = state.notes.filter(x=>x!==n); save(); render(); toast('Sticker deleted'); }
+        else { el.dataset.confirm='1'; e.target.textContent='?'; toast('Click again to delete this sticker'); setTimeout(()=>{delete el.dataset.confirm; e.target.textContent='✕';},2500); }
+      }
+      if (a==='type'){ n.daily=!n.daily; n.tasks.forEach(t=>{ if(t.streak==null) t.streak=0; }); save(); render(); toast(n.daily?'Daily sticker: checks reset at midnight':'Normal sticker'); }
+      if (a==='color'){
+        const old = el.querySelector('.palette'); if (old){ old.remove(); return; }
+        const p = document.createElement('div'); p.className='palette';
+        COLORS.forEach(c => { const s=document.createElement('span'); s.style.background=COLOR_HEX[c]; s.onclick=(ev)=>{ev.stopPropagation(); n.color=c; save(); render();}; p.appendChild(s); });
+        el.appendChild(p);
+      }
+    });
+
+    // tasks
+    el.querySelector('.tasks').addEventListener('click', (e) => {
+      const li = e.target.closest('.task'); if(!li) return;
+      const t = n.tasks.find(x=>x.id===li.dataset.id); if(!t) return;
+      if (e.target.classList.contains('box')){
+        t.done = !t.done;
+        if (n.daily){ t.streak = Math.max(0,(t.streak||0) + (t.done?1:-1)); }
+        save(); render();
+        if (t.done && n.tasks.every(x=>x.done)) toast(`“${n.title}” is all done`);
+      }
+      if (e.target.classList.contains('del')){ n.tasks = n.tasks.filter(x=>x!==t); save(); render(); }
+      if (e.target.classList.contains('txt')){
+        if (!direct){ onSecondClick('task:' + t.id, () => select({noteId:n.id, taskId:t.id, field:'task'})); return; }
+        editable(e.target, (v) => { if(v) t.text=v; else if(v==='') n.tasks=n.tasks.filter(x=>x!==t); save(); render(); });
+      }
+    });
+    // add task
+    const add = el.querySelector('.add');
+    add.addEventListener('click', () => { if (!direct) onSecondClick('add:' + n.id, () => select({noteId:n.id, field:'add'})); });
+    add.addEventListener('keydown', (e) => {
+      if (e.key==='Enter' && add.value.trim()){
+        n.tasks.push({id:uid(), text:add.value.trim(), done:false, streak:0});
+        save(); render();
+        const again = board.querySelector(`.note[data-id="${n.id}"] .add`); again && again.focus();
+      }
+      if (e.key==='Escape') add.blur();
+    });
+  }
+
+  function newNote(daily, title){
+    const n = {id:uid(), title: title || (daily?'Habits':'New sticker'), color: daily?'green':COLORS[Math.floor(Math.random()*6)],
+      x: 120 + Math.random()*Math.max(100, innerWidth-700), y: 100 + Math.random()*Math.max(100, innerHeight-500),
+      w:260, rot:+rndRot(), daily, z: ++state.z, tasks:[]};
+    state.notes.push(n); sel = {noteId:n.id, field:'add'}; save(); render();
+    if (direct){ const t = board.querySelector(`.note[data-id="${n.id}"] .add`); t && t.focus(); }
+    return n;
+  }
+
+  document.getElementById('btnAdd').onclick = () => newNote(false);
+  document.getElementById('btnDaily').onclick = () => newNote(true);
+  document.getElementById('btnBg').onclick = () => { state.bg = BGS[(BGS.indexOf(state.bg)+1)%BGS.length]; save(); render(); };
+  document.getElementById('btnClear').onclick = () => {
+    let c=0; state.notes.forEach(n=>{ if(!n.daily){ const b=n.tasks.length; n.tasks=n.tasks.filter(t=>!t.done); c+=b-n.tasks.length; } });
+    save(); render(); toast(c?`Removed ${c} tasks`:'Nothing to clear');
+  };
+  document.getElementById('btnExport').onclick = () => {
+    const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sticker-board-backup-'+today()+'.json'; a.click();
+    toast('Backup saved');
+  };
+  const fileIn = document.getElementById('fileIn');
+  document.getElementById('btnImport').onclick = () => fileIn.click();
+  fileIn.onchange = async () => {
+    try { const d = JSON.parse(await fileIn.files[0].text()); if(!Array.isArray(d.notes)) throw 0; state=d; save(); render(); toast('Loaded'); }
+    catch(e){ toast('Could not read the file'); }
+    fileIn.value='';
+  };
+  board.addEventListener('mousedown', (e) => { if (e.target === board && sel) select(null); });
+  document.body.addEventListener('mousedown', (e) => { if (e.target === document.body && sel) select(null); });
+  // close palettes on outside click
+  document.addEventListener('mousedown', (e) => { if(!e.target.closest('.palette') && !e.target.closest('[data-a="color"]')) document.querySelectorAll('.palette').forEach(p=>p.remove()); });
+
+  /* ---------- Clock ---------- */
+  const clockEl = document.getElementById('clock'), dateEl = document.getElementById('date');
+  function tick(){
+    const d = new Date();
+    clockEl.textContent = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const ds = d.toLocaleDateString('en-US',{weekday:'long', day:'numeric', month:'long'}); dateEl.textContent = ds.charAt(0).toUpperCase()+ds.slice(1);
+    if (dailyRollover()) render();
+  }
+  setInterval(tick, 10000);
+
+  // keep notes inside screen after resolution change
+  addEventListener('resize', () => { state.notes.forEach(n=>{ n.x=Math.min(n.x, innerWidth-80); n.y=Math.min(n.y, innerHeight-60); }); render(); });
+
+  dailyRollover(); render(); tick();
+  watchEditor();
+  setInterval(watchEditor, 5000);
+})();
+</script>
+</body>
+</html>

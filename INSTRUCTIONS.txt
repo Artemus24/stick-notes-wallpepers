@@ -1,0 +1,91 @@
+Sticker Board for Lively Wallpaper
+==================================
+
+Sticky notes on the desktop: tasks, daily habits, and a clock.
+The same files are in this folder and inside Sticker-Board.zip.
+
+
+Install in Lively
+-----------------
+
+1. Download Sticker-Board.zip from this project.
+2. Open Lively Wallpaper.
+3. Drag the zip onto the Lively window and set it as the wallpaper.
+
+Drag the zip. Do not use Add, then pick index.html. Lively treats that as a new project and stops, because LivelyInfo.json is already in the folder.
+
+On two monitors, give each screen its own wallpaper if this board should stay on one screen only.
+
+
+Type on a sticker
+-----------------
+
+Windows gives keystrokes to the desktop icons, not to the wallpaper. Letters never reach a note, and the icons jump. The fix is a normal window.
+
+1. Double-click start.bat in this folder.
+2. Leave that window open while you edit. Minimizing it is fine. Closing it turns editing off.
+3. On the wallpaper, double-click a title, a task, or "+ add a task".
+4. Type in the yellow window. Enter saves. Esc cancels.
+
+A checkbox is one click. Drag a note by its title. The pencil button opens the same edit window.
+
+start.bat uses the PowerShell that comes with Windows. Python is not required.
+
+If start.bat is not running and you double-click some text, a short line appears for about two seconds: "The editor is off. Start start.bat, then double-click again." It does not stay on screen. One click does not show it.
+
+
+Without start.bat
+-----------------
+
+Right-click the wallpaper, choose Customise, double-click the text you want, type in the Text box, then press Apply, Add task, or New sticker.
+
+Lively can also copy keys into the wallpaper: Settings, Wallpaper, Interaction, Wallpaper input, Keyboard. That hides the desktop icons on every monitor. The "Type directly on the wallpaper" checkbox only works together with that mode. The edit window does not hide icons.
+
+
+Notes after a restart
+---------------------
+
+Lively drops what a wallpaper saved unless Disk cache is on.
+
+1. Open the wallpaper's settings (the gear).
+2. Turn on Disk cache for this wallpaper.
+3. Restart Lively, or the PC, once.
+
+After that, notes stay. A daily sticker still clears its checks at midnight. The streak survives only when the task was checked yesterday and no day was skipped.
+
+Export writes a backup file. Import reads one back. Lively sometimes blocks downloads, so Export may not save a file from the wallpaper itself.
+
+
+Buttons on the board
+--------------------
+
++ Sticker      a new note
++ Daily        a habit note, checks reset every day
+Background     switch the backdrop
+Clear done     remove finished tasks, except on daily notes
+Export         save a backup
+Import         load a backup
+
+
+If you are not on Windows
+-------------------------
+
+In this folder, run:
+
+    python3 editor.py
+
+Leave it running, then double-click text on the board. The editor listens only on this computer, at http://127.0.0.1:47831.
+
+
+Files
+-----
+
+index.html            the wallpaper
+compose.html          the edit window
+start.bat             double-click this on Windows
+editor.ps1            the program start.bat runs
+editor.py             the same editor for Mac or Linux
+LivelyInfo.json       tells Lively this folder is a wallpaper
+LivelyProperties.json the Customise panel
+thumbnail.png         preview image
+INSTRUCTIONS.txt      this file

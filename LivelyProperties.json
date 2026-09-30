@@ -1,0 +1,36 @@
+{
+  "info": {
+    "type": "label",
+    "value": "The wallpaper itself cannot take the keyboard: Windows gives those letters to the desktop icons. Run start.bat and double-click a task to type in a normal window. Or select a task and type in the box below."
+  },
+  "editText": {
+    "text": "Text",
+    "type": "textbox",
+    "value": ""
+  },
+  "applyBtn": {
+    "text": "Replace the selected task or title",
+    "type": "button",
+    "value": "Apply"
+  },
+  "addTaskBtn": {
+    "text": "Add the text as a new task on the selected sticker",
+    "type": "button",
+    "value": "Add task"
+  },
+  "newNoteBtn": {
+    "text": "Create a new sticker with this title",
+    "type": "button",
+    "value": "New sticker"
+  },
+  "deselectBtn": {
+    "text": "Clear the selection",
+    "type": "button",
+    "value": "Clear"
+  },
+  "directTyping": {
+    "text": "Type directly on the wallpaper. In Lively: Settings, Wallpaper, Interaction, Input, Keyboard. That hides the desktop icons.",
+    "type": "checkbox",
+    "value": false
+  }
+}
